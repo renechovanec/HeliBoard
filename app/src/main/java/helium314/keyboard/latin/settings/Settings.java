@@ -94,6 +94,7 @@ public final class Settings implements SharedPreferences.OnSharedPreferenceChang
     public static final String PREF_ADDITIONAL_SUBTYPES = "additional_subtypes";
     public static final String PREF_ENABLE_SPLIT_KEYBOARD = "split_keyboard";
     public static final String PREF_ENABLE_SPLIT_KEYBOARD_LANDSCAPE = "split_keyboard_landscape";
+    public static final String PREF_ENABLE_SPLIT_OVERLAP_GHOST_KEYS = "split_overlap_ghost_keys";
     public static final String PREF_SPLIT_SPACER_SCALE_PREFIX = "split_spacer_scale";
     public static final String PREF_KEYBOARD_HEIGHT_SCALE_PREFIX = "keyboard_height_scale";
     public static final String PREF_BOTTOM_ROW_SCALE_PREFIX = "bottom_row_scale";
@@ -430,6 +431,10 @@ public final class Settings implements SharedPreferences.OnSharedPreferenceChang
         final Float[] defaults = Defaults.PREF_SPLIT_SPACER_SCALE;
         final float defaultValue = defaults[index];
         return prefs.getFloat(SettingsKt.createPrefKeyForBooleanSettings(PREF_SPLIT_SPACER_SCALE_PREFIX, index, 1), defaultValue);
+    }
+
+    public static boolean mEnableSplitOverlapGhostKeys(final SharedPreferences prefs) {
+        return prefs.getBoolean(PREF_ENABLE_SPLIT_OVERLAP_GHOST_KEYS, Defaults.PREF_ENABLE_SPLIT_OVERLAP_GHOST_KEYS);
     }
 
     public static float readBottomPaddingScale(final SharedPreferences prefs, final boolean landscape) {

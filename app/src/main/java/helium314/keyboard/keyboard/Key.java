@@ -149,6 +149,7 @@ public class Key implements Comparable<Key> {
     private final KeyVisualAttributes mKeyVisualAttributes;
     @Nullable
     private final OptionalAttributes mOptionalAttributes;
+    private final boolean mIsSplitOverlap;
 
     private static final class OptionalAttributes {
         /** Text to output when pressed. This can be multiple characters, like ".com" */
@@ -219,6 +220,7 @@ public class Key implements Comparable<Key> {
         mY = y;
         mHitBox.set(x, y, x + width + 1, y + height);
         mKeyVisualAttributes = null;
+        mIsSplitOverlap = false;
 
         mHashCode = computeHashCode(this);
     }
@@ -252,6 +254,7 @@ public class Key implements Comparable<Key> {
         mActionFlags = key.mActionFlags;
         mKeyVisualAttributes = key.mKeyVisualAttributes;
         mOptionalAttributes = key.mOptionalAttributes;
+        mIsSplitOverlap = key.mIsSplitOverlap;
         mHashCode = key.mHashCode;
         // Key state.
         mPressed = key.mPressed;
@@ -281,6 +284,7 @@ public class Key implements Comparable<Key> {
         mKeyVisualAttributes = key.mKeyVisualAttributes;
         mOptionalAttributes = outputText == null ? null
                 : Key.OptionalAttributes.newInstance(outputText, KeyCode.NOT_SPECIFIED, null, 0, 0);
+        mIsSplitOverlap = key.mIsSplitOverlap;
         mHashCode = key.mHashCode;
         // Key state.
         mPressed = key.mPressed;
@@ -302,6 +306,7 @@ public class Key implements Comparable<Key> {
         mKeyVisualAttributes = keyParams.mKeyVisualAttributes;
         mOptionalAttributes = keyParams.mOptionalAttributes;
         mEnabled = keyParams.mEnabled;
+        mIsSplitOverlap = keyParams.mIsSplitOverlap;
 
         // stuff to create
 
@@ -346,6 +351,7 @@ public class Key implements Comparable<Key> {
             mActionFlags = key.mActionFlags;
         mKeyVisualAttributes = key.mKeyVisualAttributes;
         mOptionalAttributes = key.mOptionalAttributes;
+        mIsSplitOverlap = key.mIsSplitOverlap;
         mHashCode = key.mHashCode;
         // Key state.
         mPressed = key.mPressed;
@@ -387,6 +393,7 @@ public class Key implements Comparable<Key> {
                 key.getOutputText(),
                 key.mActionFlags,
                 key.mLabelFlags,
+                key.mIsSplitOverlap,
                 // Key can be distinguishable without the following members.
                 // key.mOptionalAttributes.mAltCode,
                 // key.mOptionalAttributes.mDisabledIconId,
@@ -413,7 +420,12 @@ public class Key implements Comparable<Key> {
                 && Arrays.equals(o.mPopupKeys, mPopupKeys)
                 && TextUtils.equals(o.getOutputText(), getOutputText())
                 && o.mActionFlags == mActionFlags
-                && o.mLabelFlags == mLabelFlags;
+                && o.mLabelFlags == mLabelFlags
+                && o.mIsSplitOverlap == mIsSplitOverlap;
+    }
+
+    public final boolean isSplitOverlap() {
+        return mIsSplitOverlap;
     }
 
     @Override
@@ -961,6 +973,7 @@ public class Key implements Comparable<Key> {
     public static class KeyParams {
         // params for building
         public boolean isSpacer;
+        public boolean mIsSplitOverlap = false;
         private final KeyboardParams mKeyboardParams; // for reading gaps and keyboard width / height
         public float mWidth;
         public float mHeight; // also should allow negative values, indicating absolute height is defined
@@ -1237,6 +1250,7 @@ public class Key implements Comparable<Key> {
         private KeyParams(final KeyboardParams params) {
             isSpacer = true; // this is only for spacer!
             mKeyboardParams = params;
+            mIsSplitOverlap = false;
 
             mCode = KeyCode.NOT_SPECIFIED;
             mLabel = null;
@@ -1260,6 +1274,7 @@ public class Key implements Comparable<Key> {
             isSpacer = keyParams.isSpacer;
             mKeyboardParams = keyParams.mKeyboardParams;
             mEnabled = keyParams.mEnabled;
+            mIsSplitOverlap = keyParams.mIsSplitOverlap;
 
             mCode = keyParams.mCode;
             mLabel = keyParams.mLabel;

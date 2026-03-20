@@ -6,6 +6,7 @@
 package helium314.keyboard.keyboard.internal
 
 import android.content.Context
+import android.content.res.Configuration
 import android.content.res.Resources
 import android.util.Xml
 import androidx.annotation.XmlRes
@@ -126,7 +127,13 @@ open class KeyboardBuilder<KP : KeyboardParams>(protected val mContext: Context,
     }
 
     private fun addSplit() {
-        val spacerRelativeWidth = Settings.getValues().mSplitKeyboardSpacerRelativeWidth
+        val settingsValues = Settings.getValues()
+        val spacerRelativeWidth = settingsValues.mSplitKeyboardSpacerRelativeWidth
+        val enableOverlap = settingsValues.mDisplayOrientation == Configuration.ORIENTATION_LANDSCAPE
+                && spacerRelativeWidth > 0f
+                && settingsValues.mEnableSplitOverlapGhostKeys
+        val overlapLetterKeyCount = 2
+        val overlapMinSpacerWidth = 0.05f
         // adjust gaps for the whole keyboard, so it's the same for all rows
         mParams.mRelativeHorizontalGap *= 1f / (1f + spacerRelativeWidth)
         mParams.mHorizontalGap = (mParams.mRelativeHorizontalGap * mParams.mId.mWidth).toInt()
@@ -150,8 +157,18 @@ open class KeyboardBuilder<KP : KeyboardParams>(protected val mContext: Context,
                 insertIndex = row.indexOf(spaceLeft) + 1
                 val widthBeforeSpace = row.subList(0, insertIndex - 1).sumOf { it.mWidth }
                 val widthAfterSpace = row.subList(insertIndex, row.size).sumOf { it.mWidth }
-                val spaceLeftWidth = (maxWidthBeforeSpacer - widthBeforeSpace).coerceAtLeast(mParams.mDefaultKeyWidth)
-                val spaceRightWidth = (maxWidthAfterSpacer - widthAfterSpace).coerceAtLeast(mParams.mDefaultKeyWidth)
+                var spaceLeftWidth = (maxWidthBeforeSpacer - widthBeforeSpace).coerceAtLeast(mParams.mDefaultKeyWidth)
+                var spaceRightWidth = (maxWidthAfterSpacer - widthAfterSpace).coerceAtLeast(mParams.mDefaultKeyWidth)
+                if (enableOverlap) {
+                    val spacerWidthBase = spaceLeft.mWidth + spacerRelativeWidth - spaceLeftWidth - spaceRightWidth
+                    if (spacerWidthBase > overlapMinSpacerWidth) {
+                        val requestedExtra = 2f * mParams.mDefaultKeyWidth
+                        val maxExtraEachSide = ((spacerWidthBase - overlapMinSpacerWidth) / 2f).coerceAtLeast(0f)
+                        val extraEachSide = requestedExtra.coerceAtMost(maxExtraEachSide)
+                        spaceLeftWidth += extraEachSide
+                        spaceRightWidth += extraEachSide
+                    }
+                }
                 val spacerWidth = spaceLeft.mWidth + spacerRelativeWidth - spaceLeftWidth - spaceRightWidth
                 if (spacerWidth > 0.05f) {
                     // only insert if the spacer has a reasonable width
@@ -182,6 +199,65 @@ open class KeyboardBuilder<KP : KeyboardParams>(protected val mContext: Context,
                 it.setAbsoluteDimensions(currentX, y)
                 currentX += it.mAbsoluteWidth
             }
+
+            if (!enableOverlap) continue
+
+            // Using an actual center spacer to better position "ghost" keys
+            val spacerIndex = row.indexOf(spacer)
+            if (spacerIndex < 0 || spacer.mWidth <= overlapMinSpacerWidth) continue
+
+            fun isOverlapCandidate(key: KeyParams): Boolean {
+                if (key.isSpacer) return false
+                // Only overlap actual letters (not shift/delete/etc and not the space key).
+                if (key.mCode == Constants.CODE_SPACE) return false
+                if (key.mCode < Constants.CODE_SPACE) return false
+                return key.mBackgroundType == Key.BACKGROUND_TYPE_NORMAL
+            }
+
+            val rightCandidates = (spacerIndex + 1 until row.size)
+                .mapNotNull { idx -> row[idx].takeIf { isOverlapCandidate(it) } }
+                .take(overlapLetterKeyCount)
+
+            val leftCandidatesReversed = (spacerIndex - 1 downTo 0)
+                .mapNotNull { idx -> row[idx].takeIf { isOverlapCandidate(it) } }
+                .take(overlapLetterKeyCount)
+            val leftCandidates = leftCandidatesReversed.asReversed()
+
+            if (rightCandidates.isEmpty() && leftCandidates.isEmpty()) continue
+
+            val minX = mParams.mLeftPadding.toFloat()
+            val occupiedMaxX = minX + mParams.mOccupiedWidth.toFloat()
+
+            val gapLeft = spacer.xPos
+            val gapRight = spacer.xPos + spacer.mAbsoluteWidth
+
+            val nearestRight = rightCandidates.first()
+            val deltaRight = gapLeft - nearestRight.xPos
+
+            val duplicatesRightToLeft = rightCandidates.map { orig ->
+                val origWidth = orig.mAbsoluteWidth
+                val maxX = gapRight - origWidth
+                KeyParams(orig).apply {
+                    mIsSplitOverlap = true
+                    xPos = (xPos + deltaRight).coerceIn(gapLeft, maxX)
+                }
+            }
+
+            val nearestLeft = leftCandidates.last()
+            val deltaLeft = (gapRight - nearestLeft.mAbsoluteWidth) - nearestLeft.xPos
+
+            val duplicatesLeftToRight = leftCandidates.map { orig ->
+                val origWidth = orig.mAbsoluteWidth
+                val maxX = gapRight - origWidth
+                KeyParams(orig).apply {
+                    mIsSplitOverlap = true
+                    xPos = (xPos + deltaLeft).coerceIn(gapLeft, maxX)
+                }
+            }
+
+            row.addAll(spacerIndex, duplicatesRightToLeft)
+            val spacerIndexAfterInsert = row.indexOf(spacer)
+            row.addAll(spacerIndexAfterInsert + 1, duplicatesLeftToRight)
         }
     }
 

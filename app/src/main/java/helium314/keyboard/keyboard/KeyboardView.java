@@ -338,11 +338,16 @@ public class KeyboardView extends View {
         final KeyVisualAttributes attr = key.getVisualAttributes();
         // don't use the raw key height, linear font scaling with height is too extreme
         final KeyDrawParams params = mKeyDrawParams.mayCloneAndUpdateParams((int) (key.getHeight() * mKeyScaleForText), attr);
-        params.mAnimAlpha = Constants.Color.ALPHA_OPAQUE;
+        if (key.isSplitOverlap()) {
+            params.mAnimAlpha = (int) (Constants.Color.ALPHA_OPAQUE * 0.65f);
+        } else {
+            params.mmEnableSplitOverlapGhostKeysAnimAlpha = Constants.Color.ALPHA_OPAQUE;
+        }
 
         if (!key.isSpacer()) {
             final Drawable background = key.selectBackgroundDrawable(
                     mKeyBackground, mFunctionalKeyBackground, mSpacebarBackground, mActionKeyBackground);
+            background.setAlpha(params.mAnimAlpha);
             onDrawKeyBackground(key, canvas, background);
         }
         onDrawKeyTopVisuals(key, canvas, paint, params);
